@@ -1,0 +1,19 @@
+import kdtree
+import fastkdtree 
+
+var points = []
+var np = 3
+
+for (i in 1..np) {
+    points.append(Matrix([np-randomint(2*np), np-randomint(2*np), np-randomint(2*np)]))
+}
+var tree = KDTree(points)
+
+var ctree = CKDTree(points, 0)
+
+print "Morpho KDTree:"
+print tree 
+
+print "C KDTree"
+print ctree
+
