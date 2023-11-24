@@ -1,0 +1,5 @@
+*.dylib
+.DS_Store
+local/*
+lib/fastkdtree.dylib
+src/fastkdtree.dylib
