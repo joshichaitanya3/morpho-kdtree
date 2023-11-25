@@ -2,10 +2,13 @@ import kdtree
 import fastkdtree 
 
 var points = []
-var np = 3
+var np = 9
 
+// for (i in 1..np) {
+//     points.append(Matrix([np-randomint(2*np), np-randomint(2*np), np-randomint(2*np)]))
+// }
 for (i in 1..np) {
-    points.append(Matrix([np-randomint(2*np), np-randomint(2*np), np-randomint(2*np)]))
+    points.append(np*Matrix([1-2*random(), 1-2*random(), 1-2*random()]))
 }
 var tree = KDTree(points)
 

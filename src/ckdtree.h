@@ -76,6 +76,7 @@ objectkdtree *object_newkdtree(objectlist* points, int depth);
 #define KDTREE_CLASSNAME                  "CKDTree"
 #define KDTREE_HEAD_METHOD                "head"
 #define KDTREE_ISMEMBER_METHOD            "ismember"
+#define KDTREE_INSERT_METHOD              "insert"
 /** Constructor function for KDTree */
 value kdtree_constructor(vm *v, int nargs, value *args);
 

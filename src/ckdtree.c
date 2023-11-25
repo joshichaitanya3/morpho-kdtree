@@ -224,11 +224,14 @@ objectkdtreenode* kdtree_build(objectlist* points, int depth) {
         return out;
     }
 
-    int axis = depth % kdtree_dimension;
-
+    comparator_axis  = depth % kdtree_dimension;
+    printf("np is now %d... \n", np);
+    printf("Depth is now %d... \n", depth);
+    printf("Comparator axis is now %d... \n", comparator_axis);
     // Sort points to find median along current axis
     qsort(points->val.data, points->val.count, sizeof(value), comparator);
-    int ipivot = ceil((np-1)/2);
+    int ipivot = round((double)(np-1)/2);
+    printf("ipivot is now %d... \n", ipivot);
 
     // Create lists for points on the left and right of this plane
     objectlist * left = object_newlist(ipivot, NULL);
@@ -287,6 +290,44 @@ objectkdtreenode* kdtree_ismember(objectkdtree* tree, value ptval) {
     }
     return NULL;
   }
+
+// Function to insert a point into the kd-tree
+objectkdtreenode* kdtree_insert(objectkdtree* tree, value ptval, int id) { // Inserts a point into the tree
+    int depth = 0;
+    double pt[kdtree_dimension];
+    bool success = kdtree_valuetodoublearray(ptval, &pt);
+    objectkdtreenode* node = tree->head;
+    objectkdtreenode* next;
+
+    int pivot;
+    double dist;
+    // for (var node = self.head, next; node!=nil; node=next) {
+    while (node) {
+        pivot = depth % kdtree_dimension;
+        dist = kdtree_norm(pt, node->point, 2);
+        if (fabs(pt[pivot] - node->point[pivot])<tree->tol && dist<tree->tol) {
+            printf("Warning: duplicate node!\n");
+            return node;
+        }
+        else if (pt[pivot] < node->point[pivot]) {
+            next = node->left;
+            if (!next) {
+            //   node.left = KDTreeNode(pt, nil, nil)
+                node->left = object_newkdtreenode(ptval, id);
+                return node->left;
+            }
+        } else {
+            next = node->right;
+            if (!next) {
+                // node.right = KDTreeNode(pt, nil, nil)
+                node->right = object_newkdtreenode(ptval, id);
+                return node->right;
+            }
+        }
+        depth += 1;
+        node = next;
+    }   
+}
 
 void kdtree_printnode(vm *v, objectkdtreenode* node) {
     morpho_printf(v, "[%g, %g, %g]", node->point[0], node->point[1], node->point[2]);
@@ -424,6 +465,28 @@ value KDTree_ismember(vm *v, int nargs, value *args) {
     return out;
 }
 
+value KDTree_insert(vm *v, int nargs, value *args) {
+    objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
+    objectkdtreenode* node;
+    value ptval = MORPHO_NIL;
+    value out=MORPHO_NIL;
+    int id=0;
+    if (nargs==1 && (MORPHO_ISLIST(MORPHO_GETARG(args, 0)) || MORPHO_ISMATRIX(MORPHO_GETARG(args, 0)))) {
+        ptval = MORPHO_GETARG(args, 0);
+        node = kdtree_insert(tree, ptval, id);
+    }
+    else if (nargs==2 && (MORPHO_ISLIST(MORPHO_GETARG(args, 0)) || MORPHO_ISMATRIX(MORPHO_GETARG(args, 0))) && MORPHO_ISINTEGER(MORPHO_GETARG(args, 1))) {
+        ptval = MORPHO_GETARG(args, 0);
+        id = MORPHO_GETINTEGERVALUE(MORPHO_GETARG(args, 1));
+        node = kdtree_insert(tree, ptval, id);
+    }
+    if (node) {
+        out=MORPHO_OBJECT(node);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
+
 value KDTree_head(vm *v, int nargs, value *args) {
     value out=MORPHO_NIL;
     objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
@@ -434,31 +497,6 @@ value KDTree_head(vm *v, int nargs, value *args) {
     }
     return out;
 }
-// // Function to insert a point into the kd-tree
-// objectkdtreenode* kdtree_insert(objectkdtreenode* root, double point[kdtree_dimension], int id, int depth) {
-//     if (root == NULL) {
-//         return object_newkdtreenode(point, id);
-//     }
-
-//     int pivot = depth % kdtree_dimension;
-//     double delta = 0;
-//     for (int i = 0; i < kdtree_dimension; i++) {
-//         delta += pow((point[i] - root->point[i]),2);
-//     }
-//     delta = pow(delta, 0.5);
-//     if (fabs(point[pivot] - root->point[pivot])<root->tol &&
-//                 delta<root->tol) {
-//         printf("Warning: duplicate node\n");
-//         return root;
-//     } else if (point[pivot] < root->point[pivot]) {
-//         root->left = kdtree_insert(root->left, point, id, depth + 1);
-//     } else {
-//         root->right = kdtree_insert(root->right, point, id, depth + 1);
-//     }
-
-//     return root;
-// }
-
 
 // // Function to concatenate two node lists
 // kdtreenodelist* kdtree_concatenatelists(kdtreenodelist* list1, kdtreenodelist* list2) {
@@ -545,7 +583,8 @@ value KDTree_head(vm *v, int nargs, value *args) {
 MORPHO_BEGINCLASS(CKDTree)
 MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTree_print, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_HEAD_METHOD, KDTree_head, BUILTIN_FLAGSEMPTY),
-MORPHO_METHOD(KDTREE_ISMEMBER_METHOD, KDTree_ismember, BUILTIN_FLAGSEMPTY)
+MORPHO_METHOD(KDTREE_ISMEMBER_METHOD, KDTree_ismember, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREE_INSERT_METHOD, KDTree_insert, BUILTIN_FLAGSEMPTY)
 MORPHO_ENDCLASS
 
 
