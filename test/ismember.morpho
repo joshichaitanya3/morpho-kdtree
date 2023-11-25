@@ -1,0 +1,13 @@
+// import kdtree
+import fastkdtree 
+
+var points = [Matrix([1,2,3]), Matrix([2,-1,0]), Matrix([-2,5,2])]
+
+var ctree = CKDTree(points, 0)
+
+print ctree.ismember(Matrix([1,2,3])) // Expect: [1, 2, 3]
+print ctree.ismember(Matrix([4,5,4])) // Expect: nil
+var head = ctree.head()
+
+print head.left() // Expect: [-2, 5, 2]
+print head.right() // Expect: [2, -1, 0]

@@ -3,7 +3,7 @@
 #include <morpho/builtin.h>
 
 extern objecttype objectkdtreenodetype;
-#define OBJECT_KDTREE_NODE objectkdtreenodetype
+#define OBJECT_KDTREENODE objectkdtreenodetype
 
 extern objecttype objectkdtreetype;
 #define OBJECT_KDTREE objectkdtreetype
@@ -38,11 +38,11 @@ typedef struct {
     objectkdtreenode* head;
 } objectkdtree;
 
-// List structure to store nodes in range
-DECLARE_VARRAY(kdtreenode, objectkdtreenode)
+// // List structure to store nodes in range
+// DECLARE_VARRAY(kdtreenode, objectkdtreenode)
 
 /** Tests whether an object is a objectkdtreenode */
-#define MORPHO_ISKDTREENODE(val) object_istype(val, OBJECT_KDTREE_NODE)
+#define MORPHO_ISKDTREENODE(val) object_istype(val, OBJECT_KDTREENODE)
 /** Gets the object as a objectkdtreenode */
 #define MORPHO_GETKDTREENODE(val) ((objectkdtreenode *) MORPHO_GETOBJECT(val))
 
@@ -57,15 +57,25 @@ DECLARE_VARRAY(kdtreenode, objectkdtreenode)
 /* Prototypes for constructors*/
 // objectkdtreenode *object_newkdtreenode(double point[kdtree_dimension], int id, struct objectkdtreenode* left, struct objectkdtreenode* right);
 // objectkdtreenode *object_newkdtreenode(double point[kdtree_dimension], int id, objectkdtreenode* left, objectkdtreenode* right);
-objectkdtreenode *object_newkdtreenode(double point[kdtree_dimension], int id);
+// objectkdtreenode *object_newkdtreenode(double point[kdtree_dimension], int id);
+objectkdtreenode *object_newkdtreenode(value ptval, int id);
 
 objectkdtree *object_newkdtree(objectlist* points, int depth);
 
+/* **********************************************************************
+ * KD-TreeNode veneer class
+ * ********************************************************************** */
+    
+#define KDTREENODE_CLASSNAME                  "CKDTreeNode"
+#define KDTREENODE_LEFT_METHOD                "left"
+#define KDTREENODE_RIGHT_METHOD               "right"
 /* **********************************************************************
  * KD-Tree veneer class
  * ********************************************************************** */
     
 #define KDTREE_CLASSNAME                  "CKDTree"
+#define KDTREE_HEAD_METHOD                "head"
+#define KDTREE_ISMEMBER_METHOD            "ismember"
 /** Constructor function for KDTree */
 value kdtree_constructor(vm *v, int nargs, value *args);
 
@@ -76,6 +86,9 @@ value kdtree_constructor(vm *v, int nargs, value *args);
 #define KDTREE_CONSTRUCTOR                "KDTreeConstructorError"
 #define KDTREE_CONSTRUCTOR_MSG            "KDTree(points, depth) constructor should be called with a list of 3d points and an integer depth"
 
+#define KDTREENODE_CONSTRUCTOR                "KDTreeNodeConstructorError"
+#define KDTREENODE_CONSTRUCTOR_MSG            "KDTreeNode(point, id) constructor should be called with a list/matrix of 3 points and an integer id"
+
 #define KDTREE_SORTDIM                    "SortDimError"
 #define KDTREE_SORTDIM_MSG                "Could not access the elements of the provided dimension."
 
@@ -84,13 +97,15 @@ value kdtree_constructor(vm *v, int nargs, value *args);
  * ********************************************************************** */
 
 bool kdtree_valuetodoublearray(value val, double *pt);
+bool kdtree_doublearraytomatrix(double pt[kdtree_dimension], objectmatrix *m);
 
 int comparator(const void* p, const void* q);
 
 // Function to build a kd-tree from a given list of points
 objectkdtreenode* kdtree_build(objectlist* points, int depth);
-
+objectkdtreenode* kdtree_ismember(objectkdtree* tree, value ptval);
 void kdtree_printnode(vm *v, objectkdtreenode* node);
+double kdtree_norm(double* pt1, double* pt2, double l);
 void kdtree_printtreefromnode(vm *v, objectkdtreenode* node, int depth);
 void kdtree_print(vm *v, objectkdtree* tree);
 

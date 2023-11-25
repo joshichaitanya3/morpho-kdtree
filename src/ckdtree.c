@@ -51,9 +51,11 @@ objecttypedefn objectkdtreenodedefn = {
 };
 
 /* todo: change the double[] to objectmatrix, thus allowing variable dimension*/
-objectkdtreenode *object_newkdtreenode(double point[kdtree_dimension], int id) {
-    objectkdtreenode *new = (objectkdtreenode *) object_new(sizeof(objectkdtreenode), OBJECT_KDTREE_NODE);
-    if (new) {
+objectkdtreenode *object_newkdtreenode(value ptval, int id) {
+    objectkdtreenode *new = (objectkdtreenode *) object_new(sizeof(objectkdtreenode), OBJECT_KDTREENODE);
+    double point[kdtree_dimension];
+    bool success = kdtree_valuetodoublearray(ptval, &point);
+    if (new && success) {
         for (int i = 0; i < kdtree_dimension; i++) {
             new->point[i] = point[i];
         }
@@ -200,6 +202,20 @@ bool kdtree_valuetodoublearray(value val, double *pt) {
     return success;
 }
 
+bool kdtree_doublearraytomatrix(double pt[kdtree_dimension], objectmatrix *m) {
+
+}
+// Function to compute the l-norm distance between two points 
+double kdtree_norm(double* pt1, double* pt2, double l) {
+    double dist = 0.0;
+    for (int i = 0; i < kdtree_dimension; i++) {
+        dist += pow((pt1[i] - pt2[i]),l);
+    }
+    dist = pow(dist , 1.0/l);
+
+    return dist;
+}
+
 // Function to build a kd-tree from a given list of points
 objectkdtreenode* kdtree_build(objectlist* points, int depth) {
     int np = list_length(points);
@@ -233,10 +249,8 @@ objectkdtreenode* kdtree_build(objectlist* points, int depth) {
 
     // Create node from the point at ipivot
     value ptval = points->val.data[ipivot];
-    double pt[kdtree_dimension];
-    bool success = kdtree_valuetodoublearray(ptval, &pt);
     
-    objectkdtreenode* node = object_newkdtreenode(pt, 0);
+    objectkdtreenode* node = object_newkdtreenode(ptval, 0);
 
     node->left = kdtree_build(left, depth+1);
 
@@ -249,26 +263,33 @@ objectkdtreenode* kdtree_build(objectlist* points, int depth) {
     return node;
 }
 
-// bool kdtree_ismember(pt) { // Tests if a point is in the tree.
-//     var depth = 0
-
-//     for (var node = self.head, next; !isnil(node); ) {
-//       var pivot = mod(depth, self.dimension)
-//       if (abs(pt[pivot] - node.location[pivot])<self.tol &&
-//                 (pt-node.location).norm()<self.tol) {
-//         return node
-//       } else if (pt[pivot] < node.location[pivot]) {
-//         node = node.left
-//       } else {
-//         node = node.right
-//       }
-//       depth+=1
-//     }
-//     return false
-//   }
+// Tests if a point is in the tree and returns the point if true
+objectkdtreenode* kdtree_ismember(objectkdtree* tree, value ptval) { 
+    int depth = 0;
+    double pt[kdtree_dimension];
+    bool success = kdtree_valuetodoublearray(ptval, &pt);
+    objectkdtreenode* node = tree->head;
+    int pivot;
+    double dist;
+    while(node) {
+        pivot = depth % kdtree_dimension;
+        dist = kdtree_norm(pt, node->point, 2);
+        if (fabs(pt[pivot] - node->point[pivot])<tree->tol && dist<tree->tol) {
+            return node;
+        }
+        else if (pt[pivot] < node->point[pivot]) {
+            node = node->left;
+        } 
+        else {
+            node = node->right;
+        }
+        depth += 1;
+    }
+    return NULL;
+  }
 
 void kdtree_printnode(vm *v, objectkdtreenode* node) {
-    morpho_printf(v, "[%g, %g, %g]\n", node->point[0], node->point[1], node->point[2]);
+    morpho_printf(v, "[%g, %g, %g]", node->point[0], node->point[1], node->point[2]);
     
 }
 
@@ -278,6 +299,7 @@ void kdtree_printtreefromnode(vm *v, objectkdtreenode* node, int depth) {
         morpho_printf(v, " ");
     }
     kdtree_printnode(v, node);
+    morpho_printf(v, "\n");
     if (node->left) kdtree_printtreefromnode(v, node->left, depth+1);
     if (node->right) kdtree_printtreefromnode(v, node->right, depth+1);
 }
@@ -291,26 +313,63 @@ void kdtree_print(vm *v, objectkdtree* tree) {
  * KD-Tree veneer class
  * ********************************************************************** */
    
-// value kdtreenode_constructor(vm *v, int nargs, value *args) {
-//     value out=MORPHO_NIL;
-//     objectlist* points = NULL;
-//     objectkdtreenode *new=NULL;
-//     int id;
+value kdtreenode_constructor(vm *v, int nargs, value *args) {
+    value out=MORPHO_NIL;
+    objectkdtreenode *new=NULL;
+    int id;
+    double point[kdtree_dimension];
+    value ptval = MORPHO_NIL;
+    if (nargs==1 && (MORPHO_ISLIST(MORPHO_GETARG(args, 0)) || MORPHO_ISMATRIX(MORPHO_GETARG(args, 0)))) {
+        ptval = MORPHO_GETARG(args, 0);
+        new = object_newkdtreenode(ptval, id);
+    }
+    else morpho_runtimeerror(v, KDTREENODE_CONSTRUCTOR);
+    if (new) {
+        out=MORPHO_OBJECT(new);
+        morpho_bindobjects(v, 1, &out);
+    }
 
-//     if (nargs==2 && MORPHO_ISLIST(MORPHO_GETARG(args, 0)) && MORPHO_ISINTEGER(MORPHO_GETARG(args, 1))) {
-//         points = list_clone(MORPHO_GETLIST((MORPHO_GETARG(args, 0)))); 
+    return out;
+}
 
-//         depth = MORPHO_GETINTEGERVALUE(MORPHO_GETARG(args, 1));
-//         new = object_newkdtree(points, depth);
-//     }
-//     else morpho_runtimeerror(v, KDTREE_CONSTRUCTOR);
-//     if (comparator_err) morpho_runtimeerror(v, KDTREE_SORTDIM);
-//     if (new) {
-//         out=MORPHO_OBJECT(new);
-//         morpho_bindobjects(v, 1, &out);
+value KDTreeNode_print(vm *v, int nargs, value *args) {
+    value self = MORPHO_SELF(args);
+    if (!MORPHO_ISKDTREENODE(self)) return Object_print(v, nargs, args);
+    
+    objectkdtreenode *node=MORPHO_GETKDTREENODE(MORPHO_SELF(args));
+    kdtree_printnode(v, node);
+    return MORPHO_NIL;
+}
 
+value KDTreeNode_left(vm *v, int nargs, value *args) {
+    value out=MORPHO_NIL;
+    objectkdtreenode* new = NULL;
+    objectkdtreenode *node=MORPHO_GETKDTREENODE(MORPHO_SELF(args));
+    new = node->left;
+    if (new) {
+        out = MORPHO_OBJECT(new);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
 
-// }
+value KDTreeNode_right(vm *v, int nargs, value *args) {
+    value out=MORPHO_NIL;
+    objectkdtreenode* new = NULL;
+    objectkdtreenode *node=MORPHO_GETKDTREENODE(MORPHO_SELF(args));
+    new = node->right;
+    if (new) {
+        out = MORPHO_OBJECT(new);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
+
+MORPHO_BEGINCLASS(CKDTreeNode)
+MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTreeNode_print, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREENODE_LEFT_METHOD, KDTreeNode_left, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREENODE_RIGHT_METHOD, KDTreeNode_right, BUILTIN_FLAGSEMPTY)
+MORPHO_ENDCLASS
 
 /* **********************************************************************
  * KD-Tree veneer class
@@ -349,6 +408,32 @@ value KDTree_print(vm *v, int nargs, value *args) {
     return MORPHO_NIL;
 }
 
+value KDTree_ismember(vm *v, int nargs, value *args) {
+    objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
+    objectkdtreenode* node;
+    value ptval = MORPHO_NIL;
+    value out=MORPHO_NIL;
+    if (nargs==1 && (MORPHO_ISLIST(MORPHO_GETARG(args, 0)) || MORPHO_ISMATRIX(MORPHO_GETARG(args, 0)))) {
+        ptval = MORPHO_GETARG(args, 0);
+        node = kdtree_ismember(tree, ptval);
+    }
+    if (node) {
+        out=MORPHO_OBJECT(node);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
+
+value KDTree_head(vm *v, int nargs, value *args) {
+    value out=MORPHO_NIL;
+    objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
+    objectkdtreenode* new = tree->head;
+    if (new) {
+        out = MORPHO_OBJECT(new);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
 // // Function to insert a point into the kd-tree
 // objectkdtreenode* kdtree_insert(objectkdtreenode* root, double point[kdtree_dimension], int id, int depth) {
 //     if (root == NULL) {
@@ -458,7 +543,9 @@ value KDTree_print(vm *v, int nargs, value *args) {
 //     return new;
 // }
 MORPHO_BEGINCLASS(CKDTree)
-MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTree_print, BUILTIN_FLAGSEMPTY)
+MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTree_print, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREE_HEAD_METHOD, KDTree_head, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREE_ISMEMBER_METHOD, KDTree_ismember, BUILTIN_FLAGSEMPTY)
 MORPHO_ENDCLASS
 
 
@@ -480,13 +567,17 @@ void fastkdtree_initialize(void) {
     
     // List constructor function
     builtin_addfunction(KDTREE_CLASSNAME, kdtree_constructor, BUILTIN_FLAGSEMPTY);
+    builtin_addfunction(KDTREENODE_CLASSNAME, kdtreenode_constructor, BUILTIN_FLAGSEMPTY);
     
-    // List constructor function
     value kdtreeclass=builtin_addclass(KDTREE_CLASSNAME, MORPHO_GETCLASSDEFINITION(CKDTree), objclass);
     object_setveneerclass(OBJECT_KDTREE, kdtreeclass);
     
+    value kdtreenodeclass=builtin_addclass(KDTREENODE_CLASSNAME, MORPHO_GETCLASSDEFINITION(CKDTreeNode), objclass);
+    object_setveneerclass(OBJECT_KDTREENODE, kdtreenodeclass);
+    
     // List error messages
     morpho_defineerror(KDTREE_CONSTRUCTOR, ERROR_HALT, KDTREE_CONSTRUCTOR_MSG);
+    morpho_defineerror(KDTREENODE_CONSTRUCTOR, ERROR_HALT, KDTREENODE_CONSTRUCTOR_MSG);
     morpho_defineerror(KDTREE_SORTDIM, ERROR_HALT, KDTREE_SORTDIM_MSG);
 }
 
