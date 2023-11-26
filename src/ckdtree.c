@@ -202,6 +202,36 @@ bool kdtree_valuetodoublearray(value val, double *pt) {
     return success;
 }
 
+bool kdtree_querytodoublearray(value val, double *pt) {
+
+    value out;
+    value out2;
+    bool success = true;
+    double tmp;
+    ;
+    if (MORPHO_ISLIST(val)) {
+        objectlist *m = MORPHO_GETLIST(val);
+        for (int i=0; i<kdtree_dimension; i++) {
+            success = (success && list_getelement(m, i, &out));
+            if (MORPHO_ISLIST(out)) {
+                objectlist* range = MORPHO_GETLIST(out);
+                for (int j=0; j<2; j++) {
+                    success = (success && list_getelement(range, j, &out2));
+                    if (MORPHO_ISFLOAT(out2)) {
+                        tmp = MORPHO_GETFLOATVALUE(out2);
+                    } else if (MORPHO_ISINTEGER(out2)) {
+                        tmp = (double)MORPHO_GETINTEGERVALUE(out2);
+                    }
+                    pt[2*i+j] = tmp;
+                }
+            }
+        }
+    }
+    else success = false;
+
+    return success;
+}
+
 bool kdtree_doublearraytomatrix(double pt[kdtree_dimension], objectmatrix *m) {
 
 }
@@ -225,13 +255,9 @@ objectkdtreenode* kdtree_build(objectlist* points, int depth) {
     }
 
     comparator_axis  = depth % kdtree_dimension;
-    printf("np is now %d... \n", np);
-    printf("Depth is now %d... \n", depth);
-    printf("Comparator axis is now %d... \n", comparator_axis);
     // Sort points to find median along current axis
     qsort(points->val.data, points->val.count, sizeof(value), comparator);
     int ipivot = round((double)(np-1)/2);
-    printf("ipivot is now %d... \n", ipivot);
 
     // Create lists for points on the left and right of this plane
     objectlist * left = object_newlist(ipivot, NULL);
@@ -329,6 +355,34 @@ objectkdtreenode* kdtree_insert(objectkdtree* tree, value ptval, int id) { // In
     }   
 }
 
+void kdtree_searchfromnode(value queryval, objectkdtreenode* node, int depth, objectlist* result) {
+    // Check if this point satisfies the query
+    bool include = true;
+    double query[2*kdtree_dimension];
+    bool success = kdtree_querytodoublearray(queryval, &query);
+    
+    for (int i=0; i<kdtree_dimension; i++) {
+        include = include && (node->point[i]>=query[2*i] && node->point[i]<=query[2*i+1]);
+    }
+    // if (include) result.append(node)
+    if (include) list_append(result, MORPHO_OBJECT(node));
+    // Now check the subnodes
+    int pivot = depth % kdtree_dimension;
+    double aqx = query[2*pivot];
+    double aqy = query[2*pivot+1];
+    double x = node->point[pivot];
+
+    if (x>=aqx && node->left) kdtree_searchfromnode(queryval, node->left, depth+1, result);
+    if (x<=aqy && node->right) kdtree_searchfromnode(queryval, node->right, depth+1, result);
+}
+
+objectlist* kdtree_search(objectkdtree* tree, value queryval) {
+    objectlist* result = object_newlist(0, NULL);
+    kdtree_searchfromnode(queryval, tree->head, 0, result);
+    return result;
+}
+
+
 void kdtree_printnode(vm *v, objectkdtreenode* node) {
     morpho_printf(v, "[%g, %g, %g]", node->point[0], node->point[1], node->point[2]);
     
@@ -406,10 +460,25 @@ value KDTreeNode_right(vm *v, int nargs, value *args) {
     return out;
 }
 
+value KDTreeNode_location(vm *v, int nargs, value *args) {
+    value out=MORPHO_NIL;
+    objectmatrix* new = object_newmatrix(3, 1, true);
+    objectkdtreenode *node=MORPHO_GETKDTREENODE(MORPHO_SELF(args));
+    matrix_setelement(new, 0, 0, node->point[0]);
+    matrix_setelement(new, 1, 0, node->point[1]);
+    matrix_setelement(new, 2, 0, node->point[2]);
+    if (new) {
+        out = MORPHO_OBJECT(new);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
+
 MORPHO_BEGINCLASS(CKDTreeNode)
 MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTreeNode_print, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREENODE_LEFT_METHOD, KDTreeNode_left, BUILTIN_FLAGSEMPTY),
-MORPHO_METHOD(KDTREENODE_RIGHT_METHOD, KDTreeNode_right, BUILTIN_FLAGSEMPTY)
+MORPHO_METHOD(KDTREENODE_RIGHT_METHOD, KDTreeNode_right, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREENODE_LOCATION_METHOD, KDTreeNode_location, BUILTIN_FLAGSEMPTY)
 MORPHO_ENDCLASS
 
 /* **********************************************************************
@@ -487,6 +556,23 @@ value KDTree_insert(vm *v, int nargs, value *args) {
     return out;
 }
 
+value KDTree_search(vm *v, int nargs, value *args) {
+    objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
+    objectkdtreenode* node;
+    objectlist* new;
+    value query = MORPHO_NIL;
+    value out=MORPHO_NIL;
+    if (nargs==1 && MORPHO_ISLIST(MORPHO_GETARG(args, 0)) ) {
+        query = MORPHO_GETARG(args, 0);
+        new = kdtree_search(tree, query);
+    }
+    if (new) {
+        out=MORPHO_OBJECT(new);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
+
 value KDTree_head(vm *v, int nargs, value *args) {
     value out=MORPHO_NIL;
     objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
@@ -498,21 +584,6 @@ value KDTree_head(vm *v, int nargs, value *args) {
     return out;
 }
 
-// // Function to concatenate two node lists
-// kdtreenodelist* kdtree_concatenatelists(kdtreenodelist* list1, kdtreenodelist* list2) {
-//     if (list1 == NULL) {
-//         return list2;
-//     }
-
-//     kdtreenodelist* current = list1;
-//     while (current->next != NULL) {
-//         current = current->next;
-//     }
-
-//     current->next = list2;
-
-//     return list1;
-// }
 
 // // Function to free the memory allocated for the kd-tree
 // void kdtree_freetree(kdtreenode* root) {
@@ -523,66 +594,12 @@ value KDTree_head(vm *v, int nargs, value *args) {
 //     }
 // }
 
-// // Function to free the memory allocated for a node list
-// void kdtree_freenodelist(kdtreenodelist* list) {
-//     while (list != NULL) {
-//         kdtreenodelist* temp = list;
-//         list = list->next;
-//         MORPHO_FREE(temp);
-//     }
-// }
 
-// int main() {
-//     kdtreenode* root = NULL;
 
-//     // Insert points into the kd-tree
-//     root = kdtree_insert(root, (double[]){2, 3}, 0, 0);
-//     root = kdtree_insert(root, (double[]){5, 4}, 1, 0);
-//     root = kdtree_insert(root, (double[]){9, 6}, 2, 0);
-//     root = kdtree_insert(root, (double[]){4, 7}, 3, 0);
-//     root = kdtree_insert(root, (double[]){8, 1}, 4, 0);
-//     root = kdtree_insert(root, (double[]){7, 2}, 5, 0);
-
-//     // Perform range search
-//     printf("Points within range (4, 2) to (8, 6):\n");
-//     kdtreenodelist* result = kdtree_rangesearch(root, (double[]){4, 2}, (double[]){8, 6}, 0);
-
-//     // Print the result
-//     kdtreenodelist* current = result;
-//     while (current != NULL) {
-//         printf("Point: (");
-//         for (int i = 0; i < kdtree_dimension; i++) {
-//             printf("%.2f", current->node->point[i]);
-//             if (i < kdtree_dimension - 1) {
-//                 printf(", ");
-//             }
-//         }
-//         printf(")\n");
-
-//         current = current->next;
-//     }
-
-//     // Free the memory allocated for the kd-tree and result list
-//     kdtree_freetree(root);
-//     kdtree_freenodelist(result);
-
-//     return 0;
-// }
-
-// // Function to create a new node list
-// objectkdtreenodelist *object_newkdtreenodelist(objectkdtreenode* node) {
-// // NodeList* createNodeList(Node* node) {
-//     // NodeList* newNode = (NodeList*)malloc(sizeof(NodeList));
-//     objectkdtreenodelist *new = (objectkdtreenodelist *) object_new(sizeof(objectkdtreenodelist), OBJECT_KDTREE_NODE_LIST);
-//     if (new != NULL) {
-//         new->node = node;
-//         new->next = NULL;
-//     }
-//     return new;
-// }
 MORPHO_BEGINCLASS(CKDTree)
 MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTree_print, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_HEAD_METHOD, KDTree_head, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREE_SEARCH_METHOD, KDTree_search, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_ISMEMBER_METHOD, KDTree_ismember, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_INSERT_METHOD, KDTree_insert, BUILTIN_FLAGSEMPTY)
 MORPHO_ENDCLASS

@@ -69,6 +69,7 @@ objectkdtree *object_newkdtree(objectlist* points, int depth);
 #define KDTREENODE_CLASSNAME                  "CKDTreeNode"
 #define KDTREENODE_LEFT_METHOD                "left"
 #define KDTREENODE_RIGHT_METHOD               "right"
+#define KDTREENODE_LOCATION_METHOD            "location"
 /* **********************************************************************
  * KD-Tree veneer class
  * ********************************************************************** */
@@ -77,6 +78,7 @@ objectkdtree *object_newkdtree(objectlist* points, int depth);
 #define KDTREE_HEAD_METHOD                "head"
 #define KDTREE_ISMEMBER_METHOD            "ismember"
 #define KDTREE_INSERT_METHOD              "insert"
+#define KDTREE_SEARCH_METHOD              "search"
 /** Constructor function for KDTree */
 value kdtree_constructor(vm *v, int nargs, value *args);
 
@@ -99,12 +101,17 @@ value kdtree_constructor(vm *v, int nargs, value *args);
 
 bool kdtree_valuetodoublearray(value val, double *pt);
 bool kdtree_doublearraytomatrix(double pt[kdtree_dimension], objectmatrix *m);
+bool kdtree_querytodoublearray(value val, double *pt);
 
 int comparator(const void* p, const void* q);
 
 // Function to build a kd-tree from a given list of points
 objectkdtreenode* kdtree_build(objectlist* points, int depth);
 objectkdtreenode* kdtree_ismember(objectkdtree* tree, value ptval);
+objectkdtreenode* kdtree_insert(objectkdtree* tree, value ptval, int id);
+void kdtree_searchfromnode(value queryval, objectkdtreenode* node, int depth, objectlist* result);
+objectlist* kdtree_search(objectkdtree* tree, value queryval);
+
 void kdtree_printnode(vm *v, objectkdtreenode* node);
 double kdtree_norm(double* pt1, double* pt2, double l);
 void kdtree_printtreefromnode(vm *v, objectkdtreenode* node, int depth);
