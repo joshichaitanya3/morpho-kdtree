@@ -1,0 +1,15 @@
+import fastkdtree 
+import meshtools
+
+var points = []
+var l = 0.3
+var np = 100
+for (i in 1..np) {
+    points.append(Matrix([1-2*random(), 1-2*random(), 1-2*random()]))
+}
+print "C KDTree"
+var ctree = CKDTree(points)
+var result = ctree.search([[-l,l], [-l,l], [-l,l]])
+print "${result.count()} points found:"
+for (node in result) print node.location().transpose()
+

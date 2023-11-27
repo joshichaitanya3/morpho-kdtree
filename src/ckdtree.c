@@ -97,7 +97,7 @@ objecttypedefn objectkdtreedefn = {
     .sizefn=objectkdtree_sizefn
 };
 
-objectkdtree *object_newkdtree(objectlist* points, int depth) {
+objectkdtree *object_newkdtree(objectlist* points) {
 
     int np = list_length(points);
     objectkdtree *new = (objectkdtree *) object_new(sizeof(objectkdtree)+np*sizeof(objectkdtreenode), OBJECT_KDTREE);
@@ -474,11 +474,17 @@ value KDTreeNode_location(vm *v, int nargs, value *args) {
     return out;
 }
 
+value KDTreeNode_id(vm *v, int nargs, value *args) {
+    objectkdtreenode *node=MORPHO_GETKDTREENODE(MORPHO_SELF(args));
+    return MORPHO_INTEGER(node->id);
+}
+
 MORPHO_BEGINCLASS(CKDTreeNode)
 MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTreeNode_print, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREENODE_LEFT_METHOD, KDTreeNode_left, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREENODE_RIGHT_METHOD, KDTreeNode_right, BUILTIN_FLAGSEMPTY),
-MORPHO_METHOD(KDTREENODE_LOCATION_METHOD, KDTreeNode_location, BUILTIN_FLAGSEMPTY)
+MORPHO_METHOD(KDTREENODE_LOCATION_METHOD, KDTreeNode_location, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREENODE_ID_METHOD, KDTreeNode_id, BUILTIN_FLAGSEMPTY)
 MORPHO_ENDCLASS
 
 /* **********************************************************************
@@ -491,12 +497,10 @@ value kdtree_constructor(vm *v, int nargs, value *args) {
     value out=MORPHO_NIL;
     objectlist* points = NULL;
     objectkdtree *new=NULL;
-    int depth;
 
-    if (nargs==2 && MORPHO_ISLIST(MORPHO_GETARG(args, 0)) && MORPHO_ISINTEGER(MORPHO_GETARG(args, 1))) {
+    if (nargs==1 && MORPHO_ISLIST(MORPHO_GETARG(args, 0))) {
         points = list_clone(MORPHO_GETLIST((MORPHO_GETARG(args, 0)))); // Important to clone this, since we sort it while building.
-        depth = MORPHO_GETINTEGERVALUE(MORPHO_GETARG(args, 1));
-        new = object_newkdtree(points, depth);
+        new = object_newkdtree(points);
     }
     else morpho_runtimeerror(v, KDTREE_CONSTRUCTOR);
     if (comparator_err) morpho_runtimeerror(v, KDTREE_SORTDIM);

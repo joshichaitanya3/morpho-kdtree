@@ -60,7 +60,7 @@ typedef struct {
 // objectkdtreenode *object_newkdtreenode(double point[kdtree_dimension], int id);
 objectkdtreenode *object_newkdtreenode(value ptval, int id);
 
-objectkdtree *object_newkdtree(objectlist* points, int depth);
+objectkdtree *object_newkdtree(objectlist* points);
 
 /* **********************************************************************
  * KD-TreeNode veneer class
@@ -70,6 +70,7 @@ objectkdtree *object_newkdtree(objectlist* points, int depth);
 #define KDTREENODE_LEFT_METHOD                "left"
 #define KDTREENODE_RIGHT_METHOD               "right"
 #define KDTREENODE_LOCATION_METHOD            "location"
+#define KDTREENODE_ID_METHOD                  "id"
 /* **********************************************************************
  * KD-Tree veneer class
  * ********************************************************************** */
@@ -87,7 +88,7 @@ value kdtree_constructor(vm *v, int nargs, value *args);
  * ------------------------------------------------------- */
 
 #define KDTREE_CONSTRUCTOR                "KDTreeConstructorError"
-#define KDTREE_CONSTRUCTOR_MSG            "KDTree(points, depth) constructor should be called with a list of 3d points and an integer depth"
+#define KDTREE_CONSTRUCTOR_MSG            "KDTree(points) constructor should be called with a list of 3d points"
 
 #define KDTREENODE_CONSTRUCTOR                "KDTreeNodeConstructorError"
 #define KDTREENODE_CONSTRUCTOR_MSG            "KDTreeNode(point, id) constructor should be called with a list/matrix of 3 points and an integer id"

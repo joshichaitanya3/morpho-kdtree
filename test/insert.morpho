@@ -4,7 +4,7 @@ import fastkdtree
 var points = [Matrix([1,2,3]), Matrix([2,-1,0]), Matrix([-2,5,2])]
 
 var tree = KDTree(points)
-var ctree = CKDTree(points, 0)
+var ctree = CKDTree(points)
 
 print tree
 print ctree
@@ -13,6 +13,6 @@ print "After insertion:"
 tree.insert(Matrix([10,10,10]))
 print tree
 
-ctree.insert(Matrix([10,10,10]))
-ctree.insert(Matrix([10,10,10])) // Expect: Warning: duplicate node!
-print ctree
+ctree.insert(Matrix([10,10,10]), 5) // Optionally setting the node id to 5.
+var node = ctree.insert(Matrix([10,10,10])) // Expect: Warning: duplicate node!
+print node.id() // Expect 5
