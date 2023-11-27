@@ -382,6 +382,83 @@ objectlist* kdtree_search(objectkdtree* tree, value queryval) {
     return result;
 }
 
+objectkdtreenode* kdtree_donearest(value ptval, objectkdtreenode* start, int cdepth, objectkdtreenode* bst, double bdst) {
+    int depth = cdepth;
+    objectlist* list = object_newlist(0, NULL);
+    objectkdtreenode* node = start;
+    int pivot;
+    double dist;
+    double pt[kdtree_dimension];
+    bool success = kdtree_valuetodoublearray(ptval, &pt);
+    // Search the tree and track the nodes selected
+    while (node) {
+        // list.append(node)
+        list_append(list, MORPHO_OBJECT(node));
+        pivot = depth % kdtree_dimension;
+        dist = kdtree_norm(pt, node->point, 2);
+        if (fabs(pt[pivot] - node->point[pivot])<node->tol && dist<node->tol) {
+            return node;
+        }
+        if (pt[pivot] < node->point[pivot]) {
+            node = node->left;
+        } else {
+            node = node->right;
+        }
+        depth+=1;
+    }
+
+    // Unwind search and check whether a closer neighbor could exist
+    objectkdtreenode* best = bst;
+    double bdist = bdst;
+    value nodefromlist;
+    while (list_length(list)>0) {
+        depth -= 1;
+        list_getelement(list, 0, &nodefromlist);   // }
+        node = MORPHO_GETKDTREENODE(nodefromlist); // } 
+        list_remove(list, nodefromlist);           // } Long way to pop, since list_pop is not an implelented method
+
+        dist = kdtree_norm(pt, node->point, 2);
+        // If this point is closer, it becomes the best point
+        if (dist<bdist) { 
+            best = node; 
+            bdist = dist;
+        }
+        // Decide if we need to check the subtree on the other side of the split
+        pivot = depth % kdtree_dimension;
+        double splitdist = pt[pivot]-node->point[pivot];
+
+        if (fabs(splitdist)<bdist) { // We do
+            objectkdtreenode* alt;
+            if (splitdist<0 && node->right) {
+                alt = kdtree_donearest(ptval, node->right, depth+1, best, bdist);
+            }
+            else if (node->left) {
+                alt = kdtree_donearest(ptval, node->left, depth+1, best, bdist);
+            }
+            if (alt) { // Check if this new point is even better
+                double adist = kdtree_norm(pt, alt->point, 2);
+                if (adist<bdist) { 
+                    best = alt; 
+                    bdist = adist; 
+                }
+            }
+        }
+    }
+
+    return best;
+
+  }
+
+objectkdtreenode* kdtree_nearest(objectkdtree* tree, value ptval) {
+    return kdtree_donearest(ptval, tree->head, 0, NULL, 1e255);
+}
+
+int kdtree_domaxdepth(objectkdtreenode* node, int startdepth) {
+    if (!node) return startdepth;
+
+    return (int) fmax( (double) kdtree_domaxdepth(node->left, startdepth+1), (double) kdtree_domaxdepth(node->right, startdepth+1) );
+}
+
 
 void kdtree_printnode(vm *v, objectkdtreenode* node) {
     morpho_printf(v, "[%g, %g, %g]", node->point[0], node->point[1], node->point[2]);
@@ -577,6 +654,27 @@ value KDTree_search(vm *v, int nargs, value *args) {
     return out;
 }
 
+value KDTree_nearest(vm *v, int nargs, value *args) {
+    objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
+    objectkdtreenode* node;
+    value ptval = MORPHO_NIL;
+    value out=MORPHO_NIL;
+    if (nargs==1 && (MORPHO_ISLIST(MORPHO_GETARG(args, 0)) || MORPHO_ISMATRIX(MORPHO_GETARG(args, 0)))) {
+        ptval = MORPHO_GETARG(args, 0);
+        node = kdtree_nearest(tree, ptval);
+    }
+    if (node) {
+        out=MORPHO_OBJECT(node);
+        morpho_bindobjects(v, 1, &out);
+    }
+    return out;
+}
+
+value KDTree_maxdepth(vm *v, int nargs, value *args) {
+    objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
+    return MORPHO_INTEGER(kdtree_domaxdepth(tree->head, 0));
+}
+
 value KDTree_head(vm *v, int nargs, value *args) {
     value out=MORPHO_NIL;
     objectkdtree *tree=MORPHO_GETKDTREE(MORPHO_SELF(args));
@@ -605,6 +703,8 @@ MORPHO_METHOD(MORPHO_PRINT_METHOD, KDTree_print, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_HEAD_METHOD, KDTree_head, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_SEARCH_METHOD, KDTree_search, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_ISMEMBER_METHOD, KDTree_ismember, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREE_NEAREST_METHOD, KDTree_nearest, BUILTIN_FLAGSEMPTY),
+MORPHO_METHOD(KDTREE_MAXDEPTH_METHOD, KDTree_maxdepth, BUILTIN_FLAGSEMPTY),
 MORPHO_METHOD(KDTREE_INSERT_METHOD, KDTree_insert, BUILTIN_FLAGSEMPTY)
 MORPHO_ENDCLASS
 

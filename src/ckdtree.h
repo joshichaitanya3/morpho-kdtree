@@ -80,6 +80,8 @@ objectkdtree *object_newkdtree(objectlist* points);
 #define KDTREE_ISMEMBER_METHOD            "ismember"
 #define KDTREE_INSERT_METHOD              "insert"
 #define KDTREE_SEARCH_METHOD              "search"
+#define KDTREE_NEAREST_METHOD             "nearest"
+#define KDTREE_MAXDEPTH_METHOD            "maxdepth"
 /** Constructor function for KDTree */
 value kdtree_constructor(vm *v, int nargs, value *args);
 
@@ -112,6 +114,9 @@ objectkdtreenode* kdtree_ismember(objectkdtree* tree, value ptval);
 objectkdtreenode* kdtree_insert(objectkdtree* tree, value ptval, int id);
 void kdtree_searchfromnode(value queryval, objectkdtreenode* node, int depth, objectlist* result);
 objectlist* kdtree_search(objectkdtree* tree, value queryval);
+objectkdtreenode* kdtree_donearest(value ptval, objectkdtreenode* start, int cdepth, objectkdtreenode* bst, double bdst);
+objectkdtreenode* kdtree_nearest(objectkdtree* tree, value ptval);
+int kdtree_domaxdepth(objectkdtreenode* node, int startdepth);
 
 void kdtree_printnode(vm *v, objectkdtreenode* node);
 double kdtree_norm(double* pt1, double* pt2, double l);

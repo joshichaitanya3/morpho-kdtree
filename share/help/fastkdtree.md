@@ -41,20 +41,32 @@ Example:
 ## Ismember
 The `ismember` method tries to find a node with a given location.
 Input: 
-    `point`: 3-element `List` or `Matrix` object containing the location
+* `point`: 3-element `List` or `Matrix` object containing the location
 
 Output:
-    `node`: The `CKDTreeNode` corresponding to the location if found, and `nil` otherwise.
+* `node`: The `CKDTreeNode` corresponding to the location if found, and `nil` otherwise.
 
 ## Insert
 The `insert` method inserts a node in the tree.
 
 Input:
-    `location`: 3D `List` or `Matrix` corresponding to the new location
-    `id` (optional): Index of the point. Will be assigned `0` if not probided.
+* `location`: 3D `List` or `Matrix` corresponding to the new location
+* `id` (optional): Index of the point. Will be assigned `0` if not probided.
 
 Output:
-    `node`: The `CKDTreeNode` object corresponding to the new node. If the location already exists, then the corresponding existing node is returned.
+* `node`: The `CKDTreeNode` object corresponding to the new node. If the location already exists, then the corresponding existing node is returned.
+
+## Nearest
+The `nearest` method returns the node in the tree nearest to the input point.
+
+Input:
+* `location`: 3D `List` or `Matrix` corresponding to the new location
+
+Output:
+* `node`: The `CKDTreeNode` object corresponding to the node nearest to the location.
+
+## Maxdepth
+The `maxdepth` method returns the maximum depth of a KD-Tree.
 
 ## CKDTreeNode
 [tagckdtreenode]: # (ckdtreenode)
@@ -68,5 +80,6 @@ To get the index, use the `id` method:
     var id = node.id()
 
 You can access the left and right nodes using the corresponding methods:
+    
     var l = node.left()
     var r = node.right()

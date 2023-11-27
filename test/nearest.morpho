@@ -1,0 +1,8 @@
+import fastkdtree 
+
+var points = [Matrix([1,2,3]), Matrix([2,-1,0]), Matrix([-2,5,2])]
+
+var ctree = CKDTree(points)
+
+print ctree.nearest(Matrix([2,-1.1,0.1])).location() // expect: [2,-1,0]
+print ctree.nearest(Matrix([-2,6,0.1])).location() // expect: [-2,5,2]

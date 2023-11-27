@@ -20,3 +20,5 @@ print tree
 print "C KDTree"
 print ctree
 
+print "Max depth: ${ctree.maxdepth()}" // expect: "Max depth: 4"
+
